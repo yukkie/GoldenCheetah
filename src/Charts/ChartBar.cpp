@@ -471,7 +471,16 @@ ChartBarItem::paintEvent(QPaintEvent *)
     painter.drawText(body, text, Qt::AlignHCenter | Qt::AlignVCenter);
 
     // draw the bar
-    if (checked) painter.fillRect(QRect(0,0,geometry().width(), 3*dpiXFactor), QBrush(GColor(CPLOTMARKER)));
+    if (checked) {
+        // at the top if the chartbar background is different to the plot background
+        if (GColor(CCHARTBAR) != color) painter.fillRect(QRect(0,0,geometry().width(), 3*dpiXFactor), QBrush(GColor(CPLOTMARKER)));
+        else {
+            // only underline the text with a little extra (why adding "XXX" below)
+            QFontMetrics fm(font());
+            double width = fm.boundingRect(text+"XXX").width();
+            painter.fillRect(QRect((geometry().width()-width)/2.0,geometry().height()-(3*dpiXFactor),width, 3*dpiXFactor), QBrush(GColor(CPLOTMARKER)));
+        }
+    }
 
     // draw the menu indicator
     if (underMouse()) {
@@ -482,7 +491,7 @@ ChartBarItem::paintEvent(QPaintEvent *)
         if (checked) {
 
             // different color if under mouse
-            QBrush brush(GColor(CHOVER));
+            QBrush brush(GCColor::invertColor(color));
             if (hotspot.contains(mouse)) brush.setColor(GColor(CPLOTMARKER));
             painter.fillPath (triangle, brush);
         } else {
@@ -518,9 +527,9 @@ ChartBarItem::event(QEvent *e)
 {
     // resize?
     if (e->type() == QEvent::Resize) {
-        int startx = width() - (20*dpiXFactor);
+        int startx = width() - (25*dpiXFactor);
         int depth = height() / 4;
-        int starty = (height() / 2.0) - (depth/2) + 3*dpiXFactor; // middle, taking into account bar at top
+        int starty = (height() / 2.0) - (depth/2) + 1*dpiXFactor; // middle, taking into account bar at top
         int hs = 3 * dpiXFactor;
 
         // set the triangle

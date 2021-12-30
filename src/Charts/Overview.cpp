@@ -26,7 +26,7 @@
 
 static QIcon grayConfig, whiteConfig, accentConfig;
 
-OverviewWindow::OverviewWindow(Context *context, int scope) : GcChartWindow(context), context(context), configured(false), scope(scope)
+OverviewWindow::OverviewWindow(Context *context, int scope, bool blank) : GcChartWindow(context), context(context), configured(false), scope(scope), blank(blank)
 {
     setContentsMargins(0,0,0,0);
     setProperty("color", GColor(COVERVIEWBACKGROUND));
@@ -39,13 +39,27 @@ OverviewWindow::OverviewWindow(Context *context, int scope) : GcChartWindow(cont
     QAction *importChart= new QAction(tr("Import Chart..."));
     addAction(importChart);
 
-    setControls(NULL);
+    QAction *settings= new QAction(tr("Settings..."));
+    addAction(settings);
+
+    // settings
+    QWidget *controls=new QWidget(this);
+    QFormLayout *formlayout = new QFormLayout(controls);
+    mincolsEdit= new QSpinBox(this);
+    mincolsEdit->setMinimum(1);
+    mincolsEdit->setMaximum(10);
+    mincolsEdit->setValue(5);
+    mincolsEdit->setButtonSymbols(QAbstractSpinBox::NoButtons);
+    formlayout->addRow(new QLabel(tr("Minimum Columns")), mincolsEdit);
+
+    setControls(controls);
 
     QHBoxLayout *main = new QHBoxLayout;
     main->setSpacing(0);
     main->setContentsMargins(0,0,0,0);
 
     space = new ChartSpace(context, scope, this);
+    space->setMinimumColumns(minimumColumns());
     main->addWidget(space);
 
     HelpWhatsThis *help = new HelpWhatsThis(space);
@@ -73,6 +87,8 @@ OverviewWindow::OverviewWindow(Context *context, int scope) : GcChartWindow(cont
     // menu items
     connect(addTile, SIGNAL(triggered(bool)), this, SLOT(addTile()));
     connect(importChart, SIGNAL(triggered(bool)), this, SLOT(importChart()));
+    connect(settings, SIGNAL(triggered(bool)), this, SLOT(settings()));
+    connect(mincolsEdit, SIGNAL(valueChanged(int)), this, SLOT(setMinimumColumns(int)));
     connect(space, SIGNAL(itemConfigRequested(ChartSpaceItem*)), this, SLOT(configItem(ChartSpaceItem*)));
 }
 
@@ -91,7 +107,17 @@ OverviewWindow::addTile()
         if (added->parent->scope & OverviewScope::ANALYSIS && added->parent->currentRideItem) added->setData(added->parent->currentRideItem);
         if (added->parent->scope & OverviewScope::TRENDS ) added->setDateRange(added->parent->currentDateRange);
 
+        // update geometry
+        space->updateGeometry();
+        space->updateView();
+
     }
+}
+
+void
+OverviewWindow::settings()
+{
+    emit showControls();
 }
 
 void
@@ -190,6 +216,10 @@ OverviewWindow::getConfiguration() const
         config += "\"deep\":" + QString("%1").arg(item->deep) + ",";
         config += "\"column\":" + QString("%1").arg(item->column) + ",";
         config += "\"order\":" + QString("%1").arg(item->order) + ",";
+
+        if (item->type != OverviewItemType::USERCHART) {
+            config += "\"color\":\"" + item->bgcolor + "\",";
+        }
 
         // now the actual card settings
         switch(item->type) {
@@ -296,7 +326,7 @@ OverviewWindow::setConfiguration(QString config)
 {
     // XXX hack because we're not in the default layout and don't want to
     // XXX this is just to handle setup for the very first time its run !
-    if (configured == true) return;
+    if (blank == true || configured == true) return;
     configured = true;
 
     // DEFAULT CONFIG (FOR NOW WHEN NOT IN THE DEFAULT LAYOUT)
@@ -395,8 +425,10 @@ badconfig:
         int type = obj["type"].toInt();
 
 
+
         // lets create the cards
         ChartSpaceItem *add=NULL;
+
         switch(type) {
 
         case OverviewItemType::RPE :
@@ -525,6 +557,12 @@ badconfig:
             }
             break;
         }
+
+        // color is common- if we actuall added one...
+        if (add) {
+            if (obj.contains("color") && type != OverviewItemType::USERCHART)  add->bgcolor = obj["color"].toString();
+            else add->bgcolor = StandardColor(CCARDBACKGROUND).name();
+        }
     }
 
     // put in place
@@ -536,7 +574,9 @@ badconfig:
 //
 OverviewConfigDialog::OverviewConfigDialog(ChartSpaceItem*item) : QDialog(NULL), item(item)
 {
-    setWindowTitle(tr("Chart Settings"));
+    if (item->type == OverviewItemType::USERCHART) setWindowTitle(tr("Chart Settings"));
+    else setWindowTitle(tr("Tile Settings"));
+
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowFlags(windowFlags() | Qt::WindowCloseButtonHint);
     setModal(true);

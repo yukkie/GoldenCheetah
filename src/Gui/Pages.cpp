@@ -1452,6 +1452,18 @@ ColorsPage::applyThemeClicked()
                 color = theme.colors[11];
                 break;
 
+            case CCARDBACKGROUND2:
+                // set back to light black for dark themes
+                // and gray for light themes
+                color = theme.colors[12];
+                break;
+
+            case CCARDBACKGROUND3:
+                // set back to light black for dark themes
+                // and gray for light themes
+                color = theme.colors[13];
+                break;
+
             case CCHROME:
             case CCHARTBAR:
             case CTOOLBAR: // we always keep them the same, but user can make different
@@ -1460,7 +1472,7 @@ ColorsPage::applyThemeClicked()
                 break;
 
             case CHOVER:
-                color = theme.dark ? QColor(50,50,50) : QColor(200,200,200);
+                color = theme.stealth ? theme.colors[11] : (theme.dark ? QColor(50,50,50) : QColor(200,200,200));
                 break;
 
             case CPLOTSYMBOL:
@@ -1925,7 +1937,8 @@ CustomMetricsPage::addClicked()
     here.name = "My Average Power";
     here.type = 1;
     here.precision = 0;
-    here.description = "Average Power computed using Joules to account for variable recording.";
+    here.istime = false;
+    here.description = "Average Power";
     here.unitsMetric = "watts";
     here.unitsImperial = "watts";
     here.conversion = 1.00;
@@ -1935,17 +1948,12 @@ CustomMetricsPage::addClicked()
     relevant { Data contains \"P\"; }\n\
 \n\
     # initialise aggregating variables\n\
-    init { joules <- 0; seconds <- 0; }\n\
-\n\
-    # joules = power x time, for each sample\n\
-    sample { \n\
-        joules <- joules + (POWER * RECINTSECS);\n\
-        seconds <- seconds + RECINTSECS;\n\
-    }\n\
+    # does nothing, update as needed\n\
+    init { 0; }\n\
 \n\
     # calculate metric value at end\n\
-    value { joules / seconds; }\n\
-    count { seconds; }\n\
+    value { mean(samples(POWER)); }\n\
+    count { count(samples(POWER)); }\n\
 }";
 
     EditUserMetricDialog editor(this, context, here);

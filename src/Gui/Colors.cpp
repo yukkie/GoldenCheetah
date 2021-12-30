@@ -42,12 +42,20 @@ QFont baseFont;                 // base font scaled to display (before user scal
 // find the right pixelSize for font and height
 int pixelSizeForFont(QFont &font, int height)
 {
+    static QMap<int,int> maps; // cache as expensive to calculate
+
+    int pixelsize = maps.value(height, 0);
+    if (pixelsize) return pixelsize;
+
     QFont with = font;
-    int pixelsize=6;
+    pixelsize=6;
     do {
         with.setPixelSize(pixelsize+1);
         QFontMetrics fm(with);
-        if (fm.tightBoundingRect("Fy").height() > height) return pixelsize;
+        if (fm.tightBoundingRect("Fy").height() > height) {
+            maps.insert(height, pixelsize);
+            return pixelsize;
+        }
         else pixelsize++;
 
     } while (pixelsize<200); // should never loop that much
@@ -224,13 +232,13 @@ void GCColor::setupColors()
         { tr("Gui"), tr("Toolbar and Sidebar"), "CCHROME", QColor(1,1,1) },
 #else
 #ifdef Q_OS_MAC
-        { tr("Gui"), tr("Toolbar and Sidebar"), "CCHROME", QColor(213,213,213) },
+        { tr("Gui"), tr("Sidebar background"), "CCHROME", QColor(213,213,213) },
 #else
         { tr("Gui"), tr("Sidebar background"), "CCHROME", QColor(0xec,0xec,0xec) },
 #endif
 #endif
         { tr("Gui"), tr("Overview Background"), "COVERVIEWBACKGROUND", QColor(0,0,0) },
-        { tr("Gui"), tr("Overview Card Background"), "CCARDBACKGROUND", QColor(52,52,52) },
+        { tr("Gui"), tr("Overview Tile Background"), "CCARDBACKGROUND", QColor(52,52,52) },
         { tr("Data"), tr("VO2"), "CVO2", Qt::magenta },
         { tr("Data"), tr("Ventilation"), "CVENTILATION", Qt::cyan },
         { tr("Data"), tr("VCO2"), "CVCO2", Qt::green },
@@ -239,6 +247,8 @@ void GCColor::setupColors()
         { tr("Data"), tr("FeO2"), "CFEO2", Qt::yellow },
         { tr("Gui"), tr("Toolbar Hover"), "CHOVER", Qt::lightGray },
         { tr("Gui"), tr("Chartbar background"), "CCHARTBAR", Qt::lightGray },
+        { tr("Gui"), tr("Overview Tile Background Alternate"), "CCARDBACKGROUND2", QColor(0,0,0) },
+        { tr("Gui"), tr("Overview Tile Background Vibrant"), "CCARDBACKGROUND3", QColor(52,52,52) },
         { "", "", "", QColor(0,0,0) },
     };
 
@@ -359,13 +369,15 @@ void GCColor::setupColors()
     LightDefaultColorList[94].color = QColor(117,0,117); // 94:Right Pedal Smoothness
     LightDefaultColorList[95].color = QColor(54,55,75); // 95:Toolbar and Sidebar
     LightDefaultColorList[96].color = QColor(227,224,232); // 96:Overview Background
-    LightDefaultColorList[97].color = QColor(255,255,255); // 97:Overview Card Background
+    LightDefaultColorList[97].color = QColor(255,255,255); // 97:Overview Tile Background
     LightDefaultColorList[98].color = QColor(255,25,167); // 98:VO2
     LightDefaultColorList[99].color = QColor(27,203,177); // 99:Ventilation
     LightDefaultColorList[100].color = QColor(0,121,0); // 100:VCO2
     LightDefaultColorList[101].color = QColor(101,44,45); // 101:Tidal Volume
     LightDefaultColorList[102].color = QColor(134,74,255); // 102:Respiratory Frequency
     LightDefaultColorList[103].color = QColor(255,46,46); // 103:FeO2
+    LightDefaultColorList[106].color = QColor(180,180,180); // 106:Tile Alternate
+    LightDefaultColorList[107].color = QColor(0xee,0xf8,0xff); // 107:Tile Vibrant
 }
 
 // default settings for fonts etc
@@ -735,6 +747,7 @@ Themes::Themes()
     // MODERN DARK (Sublime Editor inspired)
     add.name = tr("Modern Dark");
     add.dark = true;
+    add.stealth = false;
     colors << QColor(19,19,19) // Plot Background
            << QColor(32,32,32) // Toolbar and Sidebar Chrome
            << QColor(85,170,255) // Accent color (markers)
@@ -746,7 +759,9 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(19,19,19) // Overview Background
-           << QColor(42,42,42);// Overview Card Background
+           << QColor(39,39,39) // Overview Tile Background
+           << QColor(60,60,60) // Overview Tile Background 2
+           << QColor(84,84,84);// Overview Tile Background 3
     add.colors = colors;
     themes << add;
     colors.clear();
@@ -755,6 +770,7 @@ Themes::Themes()
     // MODERN LIGHT (SAP Fiori Belize inspired)
     add.name = tr("Modern Light");
     add.dark = false;
+    add.stealth = false;
     colors << QColor(Qt::white)  // Plot Background
            << QColor(0xef,0xf4,0xf9) // Toolbar and Sidebar Chrome
            << QColor(0x26,0x84,0xf6) // Accent color (markers)
@@ -766,13 +782,60 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(0xcb,0xdc,0xea) // Overview Background
-           << QColor(255,255,255);// Overview Card Background
+           << QColor(255,255,255) // Overview Tile Background
+           << QColor(247,252,255) // Overview Tile Background 2
+           << QColor(231,241,250);// Overview Tile Background 3
+    add.colors = colors;
+    themes << add;
+    colors.clear();
+
+    // STEALTH DARK (tab placement and mostly black)
+    add.name = tr("Modern Stealth Dark");
+    add.dark = true;
+    add.stealth = true;
+    colors << QColor(19,19,19) // Plot Background
+           << QColor(19,19,19) // Toolbar and Sidebar Chrome
+           << QColor(85,170,255) // Accent color (markers)
+           << QColor(194,194,194) // Selection color
+           << QColor(Qt::yellow) // Critical Power and W'Bal
+           << QColor(Qt::red) // Heartrate
+           << QColor(Qt::green) // Speed
+           << QColor(255,170,0) // Power
+           << QColor(0,204,204) // Cadence
+           << QColor(Qt::magenta) // Torque
+           << QColor(19,19,19) // Overview Background
+           << QColor(30,30,30) // Overview Tile Background
+           << QColor(38,38,38) // Overview Tile Background 2
+           << QColor(88,88,88);// Overview Tile Background 3
+    add.colors = colors;
+    themes << add;
+    colors.clear();
+
+    // STEALTH LIGHT (tab placement and mostly white)
+    add.name = tr("Modern Stealth Light");
+    add.dark = false;
+    add.stealth = true;
+    colors << QColor(255,255,255) // Plot Background
+           << QColor(255,255,255) // Toolbar and Sidebar Chrome
+           << QColor(52,99,255) // Accent color (markers)
+           << QColor(Qt::blue) // Selection color
+           << QColor(Qt::darkMagenta) // Critical Power and W'Bal
+           << QColor(Qt::red) // Heartrate
+           << QColor(85,170,0) // Speed
+           << QColor(255,170,0) // Power
+           << QColor(0,204,204) // Cadence
+           << QColor(Qt::magenta) // Torque
+           << QColor(255,255,255) // Overview Background
+           << QColor(245,245,245) // Overview Tile Background
+           << QColor(227,227,227) // Overview Tile Background 2
+           << QColor(202,202,202);// Overview Tile Background 3
     add.colors = colors;
     themes << add;
     colors.clear();
 
     add.name = tr("Gnome Adwaita Dark");
     add.dark = true;
+    add.stealth = false;
     colors << QColor(19,19,19)  // Plot Background
            << QColor(44,49,51) // Toolbar and Sidebar Chrome
            << QColor(85,170,255) // Accent color (markers)
@@ -784,13 +847,16 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(19,19,19) // Overview Background
-           << QColor(44,49,51);// Overview Card Background
+           << QColor(44,49,51) // Overview Tile Background
+           << QColor(57,63,66) // Overview Tile Background 2
+           << QColor(73,81,91);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
     add.name = tr("Team Colours (light)");
     add.dark = false;
+    add.stealth = false;
     colors << QColor(Qt::white)  // Plot Background
            << QColor(0x36,0x37,0x4b) // Toolbar and Sidebar Chrome
            << QColor(0x65,0x69,0xa5) // Accent color (markers)
@@ -802,15 +868,18 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(0xe3,0xe0,0xe8) // Overview Background
-           << QColor(Qt::white);// Overview Card Background
+           << QColor(Qt::white) // Overview Tile Background
+           << QColor(252,249,255) // Overview Tile Background 2
+           << QColor(235,235,250);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
     add.name = tr("Ollie's Oatmeal (light)");
     add.dark = false;
-    colors << QColor(0xdd,0xef,0xe6)  // Plot Background
-           << QColor(0x31,0x25,0x0b) // Toolbar and Sidebar Chrome
+    add.stealth = false;
+    colors << QColor(255,255,255)  // Plot Background
+           << QColor(63,69,58) // Toolbar and Sidebar Chrome
            << QColor(0x8d,0x57,0x30) // Accent color (markers)
            << QColor(194,194,194) // Selection color
            << QColor(Qt::darkMagenta) // Critical Power and W'Bal
@@ -819,14 +888,17 @@ Themes::Themes()
            << QColor(255,170,0) // Power
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
-           << QColor(0xdd,0xef,0xe6) // Overview Background
-           << QColor(0xce,0xd6,0xc6);// Overview Card Background
+           << QColor(192,201,197) // Overview Background
+           << QColor(235,241,234) // Overview Tile Background
+           << QColor(250,255,247) // Overview Tile Background 2
+           << QColor(83,93,82);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
     add.name = tr("Mustang (dark)"); // ** DARK **
     add.dark = true;
+    add.stealth = false;
     colors << QColor(0,0,0)  // Plot Background
            << QColor(35,35,35) // Toolbar and Sidebar Chrome
            << QColor(255,152,0) // Accent color (markers)
@@ -838,13 +910,16 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(0,0,0) // Overview Background
-           << QColor(42,42,42);// Overview Card Background
+           << QColor(42,42,42) // Overview Tile Background
+           << QColor(30,30,30) // Overview Tile Background 2
+           << QColor(80,80,80);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
     add.name = tr("Mono (dark)"); // New v3.1 default colors // ** DARK **
     add.dark = true;
+    add.stealth = false;
     colors << QColor(Qt::black)  // Plot Background
            << QColor(Qt::black) // Toolbar and Sidebar Chrome
            << QColor(Qt::white) // Accent color (markers)
@@ -856,13 +931,16 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(0,0,0) // Overview Background
-           << QColor(42,42,42);// Overview Card Background
+           << QColor(42,42,42) // Overview Tile Background
+           << QColor(42,42,42) // Overview Tile Background 2
+           << QColor(42,42,42);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
     add.name = tr("Mono (light)"); // New v3.1 default colors // ** LIGHT **
     add.dark = false;
+    add.stealth = false;
     colors  << QColor(Qt::white)  // Plot Background
            << QColor(Qt::white) // Toolbar and Sidebar Chrome
            << QColor(Qt::black) // Accent color (markers)
@@ -874,7 +952,9 @@ Themes::Themes()
            << QColor(0,204,204) // Cadence
            << QColor(Qt::magenta) // Torque
            << QColor(255,255,255) // Overview Background
-           << QColor(245,245,245);// Overview Card Background
+           << QColor(245,245,245) // Overview Tile Background
+           << QColor(245,245,245) // Overview Tile Background 2
+           << QColor(245,245,245);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
@@ -882,6 +962,7 @@ Themes::Themes()
     // we can add more later ....
     add.name = tr("Schoberer (light)"); // Old GoldenCheetah colors // ** LIGHT **
     add.dark = false;
+    add.stealth = false;
     colors << QColor(Qt::white)  // Plot Background
            << QColor(0xec,0xec,0xec) // Toolbar and Sidebar Chrome
            << QColor(Qt::black) // Accent color (markers)
@@ -893,14 +974,16 @@ Themes::Themes()
            << QColor(Qt::blue) // Cadence
            << QColor(Qt::darkGreen) // Torque
            << QColor(255,255,255) // Overview Background
-           << QColor(245,245,245);// Overview Card Background
+           << QColor(245,245,245) // Overview Tile Background
+           << QColor(245,245,245) // Overview Tile Background 2
+           << QColor(245,245,245);// Overview Tile Background 3
     add.colors = colors;
     themes  << add;
     colors.clear();
 
 }
 
-// NOTE: this is duplicated in Pages.cpp:1565:ColorsPage::applyThemeClicked()
+// NOTE: this is duplicated in Pages.cpp:1407:ColorsPage::applyThemeClicked()
 //       you need to change there too. Sorry.
 void
 GCColor::applyTheme(int index) 
@@ -933,6 +1016,18 @@ GCColor::applyTheme(int index)
             color = theme.colors[11];
             break;
 
+        case CCARDBACKGROUND2:
+            // set back to light black for dark themes
+            // and gray for light themes
+            color = theme.colors[12];
+            break;
+
+        case CCARDBACKGROUND3:
+            // set back to light black for dark themes
+            // and gray for light themes
+            color = theme.colors[13];
+            break;
+
         case COVERVIEWBACKGROUND:
             color = theme.colors[10];
             break;
@@ -944,7 +1039,9 @@ GCColor::applyTheme(int index)
             break;
 
         case CHOVER:
-            color = theme.dark ? QColor(50,50,50) : QColor(200,200,200);
+            // stealthy themes use overview card background for hover color since they are close
+            // all other themes get a boring default
+            color = theme.stealth ? ColorList[96].color : (theme.dark ? QColor(50,50,50) : QColor(200,200,200));
             break;
 
         case CPLOTSYMBOL:
